@@ -2,6 +2,14 @@
   text-align: center;
 }
 
+/* .Hexagon-grid {
+  display: grid;
+  grid-template-columns: repeat(13, 20px);
+  grid-template-rows: repeat(7, 20px);
+  justify-content: center;
+  align-content: center;
+} */
+
 .App-logo {
   height: 40vmin;
   pointer-events: none;
