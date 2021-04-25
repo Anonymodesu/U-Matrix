@@ -1,5 +1,6 @@
 import './App.css';
 import React from 'react';
+import { getHexagonGrid, HexagonGrid } from './SOMVectors';
 
 function Hexagon(props) {
   let centre;
@@ -20,65 +21,98 @@ function Hexagon(props) {
   );
 }
 
-function SOM(props) {
-  // Hexagon dimensions explained here https://www.redblobgames.com/grids/hexagons/
-  const hexagonWidth = Math.sqrt(3) * props.hexagonSize
-  const hexagonHeight = 1.5 * props.hexagonSize
 
-  // props.xDim and props.yDim represent the structure of codebook vectors
-  // their expanded versions take into account the intermediate hexagons
-  const xExpandedDim = props.xDim * 4 - 1
-  const yExpandedDim = props.yDim * 2 - 1
 
-  //gridShift represents how the rows in the hexagon grid move forward and backward
-  const gridShift = [0, 1, 2, 1]
-  const maxGridShift = 2
-  const gridItems = []
-  const gridCssStyle = {
-    'display': 'grid',
-    'grid-template-columns': `repeat(${xExpandedDim}, ${0.5 * hexagonWidth}px)`,
-    'grid-template-rows': `repeat(${yExpandedDim}, ${hexagonHeight}px)`,
-    'justify-content': 'center',
-    'align-content': 'center',
-  }
+class SOM extends React.Component {
 
-  function getGridItem(rowNum, colNum) {
-    let gridItem;
-    const currentGridShift = gridShift[rowNum % gridShift.length]
-
-    if(colNum < currentGridShift || colNum > xExpandedDim - (maxGridShift - currentGridShift)) {
-      gridItem = null
-
-    } else if (rowNum % 2 === 0 &&
-      (colNum + rowNum) % 4 === 0) {
-      gridItem = <Hexagon size={hexagonWidth} isVector={true} />
-
-    } else if ((colNum + rowNum) % 2 === 0) {
-      gridItem = <Hexagon size={hexagonWidth} isVector={false} />
-
-    } else {
-      gridItem = null
-    }
-
-    return gridItem
-  }
-
-  for (let rowNum = 0; rowNum < yExpandedDim; rowNum++) {
-    for (let colNum = 0; colNum < xExpandedDim; colNum++) {
-      const gridItem = getGridItem(rowNum, colNum)
-      gridItems.push(<div key={rowNum * xExpandedDim + colNum}>{gridItem}</div>)
+  constructor(props) {
+    super(props);
+    // Initialise an empty grid while the real one loads
+    this.state = {
+      hexagonGrid: new HexagonGrid([[]], 1, 0, 0)
     }
   }
 
-  return (
-    <table style={gridCssStyle} >
-      {gridItems}
-    </table>
-  )
+  //Load the real hexagon grid into memory
+  componentDidMount() {
+    getHexagonGrid().then(grid => this.setState({
+      hexagonGrid: grid
+    }))
+  }
+
+  render() {
+    const hexagonGrid = this.state.hexagonGrid
+
+    // Hexagon dimensions explained here https://www.redblobgames.com/grids/hexagons/
+    // Check the topics 'Offset coordinates' and 'Doubled coordinates'
+    // I'm using Doubled coordinates
+    const hexagonWidth = Math.sqrt(3) * this.props.hexagonSize
+    const hexagonHeight = 1.5 * this.props.hexagonSize
+    const vectorHexagon = <Hexagon size={hexagonWidth} isVector={true} />
+    const distanceHexagon = <Hexagon size={hexagonWidth} isVector={false} />
+
+    // props.xDim and props.yDim represent the structure of codebook vectors
+    // their expanded versions take into account the intermediate distances hexagons
+    const xExpandedDim = hexagonGrid.xDim * 4 - 1
+    const yExpandedDim = hexagonGrid.yDim * 2 - 1
+
+    //gridShift represents how the rows in the hexagon grid move forward and backward
+    const gridShift = [0, 1, 2, 1]
+    const maxGridShift = 2
+    const gridItems = []
+    const gridCssStyle = {
+      'display': 'grid',
+      'grid-template-columns': `repeat(${xExpandedDim}, ${0.5 * hexagonWidth}px)`,
+      'grid-template-rows': `repeat(${yExpandedDim}, ${hexagonHeight}px)`,
+      'justify-content': 'center',
+      'align-content': 'center',
+    }
+
+    function getGridItem(rowNum, colNum) {
+      let gridItem;
+      const currentGridShift = gridShift[rowNum % gridShift.length]
+      
+
+      if (colNum < currentGridShift || colNum > xExpandedDim - (maxGridShift - currentGridShift)) {
+        gridItem = null
+
+        // vectors only appear on even-numbered rows
+      } else if (rowNum % 2 === 0) {
+
+        if ((colNum + rowNum) % 4 === 0) {
+          gridItem = vectorHexagon
+        } else if ((colNum + rowNum) % 2 === 0) {
+          gridItem = distanceHexagon
+        } else {
+          gridItem = null
+        }
+
+      } else if ((colNum + rowNum) % 2 === 0) {
+        gridItem = distanceHexagon
+
+      } else {
+        gridItem = null
+      }
+
+      return gridItem
+    }
+
+    for (let rowNum = 0; rowNum < yExpandedDim; rowNum++) {
+      for (let colNum = 0; colNum < xExpandedDim; colNum++) {
+        const gridItem = getGridItem(rowNum, colNum)
+        gridItems.push(<div key={rowNum * xExpandedDim + colNum}>{gridItem}</div>)
+      }
+    }
+
+    return (
+      <table style={gridCssStyle} >
+        {gridItems}
+      </table>
+    )
+  }
 }
 
 function App() {
-  
   return (
     <div className="App">
       <header>
@@ -87,8 +121,6 @@ function App() {
       <body>
         <SOM
           hexagonSize={30}
-          xDim={6}
-          yDim={6}
         />
         <p>
           <br></br>
