@@ -7,6 +7,36 @@ class Hexagon {
     this.vector = vector
     this.neighbours = {}
   }
+
+  // Calculate the distance between this vector with one of its neighbours
+  // This is quite slow; Freya can switch to use https://mathjs.org/docs/datatypes/matrices.html if she wants
+  getDistance(position) {
+    const neighbour = this.neighbours[position]
+    if(neighbour) {
+      let distance = 0
+
+      for(let i = 0; i < this.vector.length; i++) {
+        const diff = this.vector[i] - neighbour.vector[i]
+        distance += diff * diff
+      }
+      return Math.sqrt(distance)
+
+    } else {
+      return null
+    }
+  }
+
+  // Returns the average distance between this hexagon and its immediate neighbours
+  getAverageDistance() {
+    const neighbours = Object.keys(this.neighbours)
+    return neighbours.map(neighbour => this.getDistance(neighbour))
+          .reduce((sum, val) => sum + val, 0) / neighbours.length
+  }
+
+  // Returns the max distance between this hexagon and its immediate neighbours
+  getMaxDistance() {
+    return Math.max(...Object.keys(this.neighbours).map(neighbour => this.getDistance(neighbour)))
+  }
 }
 
 class HexagonGrid {
@@ -23,22 +53,35 @@ class HexagonGrid {
     && rowNum >= 0 && rowNum < this.yDim;
   }
 
+  // determines the immediate neighbours of each hexagon
+  calculateAllNeighbours() {
+    for (let rowNum = 0; rowNum < this.yDim; rowNum++) {
+      for (let colNum = 0; colNum < this.xDim; colNum++) {
+        this.calculateNeighbours(colNum, rowNum)
+      }
+    }
+  }
+
+  // sets the immediate neighbours of the hexagon at (colNum, rowNum)
   calculateNeighbours(colNum, rowNum) {
     const hexagon = this.grid[rowNum][colNum]
 
     for (const [key, getCoordinates] of Object.entries(neighbourCalculators(colNum, rowNum))) {
       const [x, y] = getCoordinates()
-      let neighbour;
 
       if (this.inBounds(x, y)) {
-        neighbour = this.grid[y][x]
-
-      } else {
-        neighbour = null
+        const neighbour = this.grid[y][x]
+        hexagon.neighbours[key] = neighbour
       }
-
-      hexagon.neighbours[key] = neighbour
     }
+  }
+
+  // returns the maximum distance between any 2 vectors in the SOM
+  getMaxDistance() {
+    return Math.max(
+          ...this.grid.map(row => 
+          Math.max(...row.map(hexagon => 
+          hexagon.getMaxDistance()))))
   }
 
 }
@@ -64,12 +107,7 @@ function constructHexagonGrid(vectorGrid, vectorDim, xDim, yDim) {
                 new Hexagon(colNum, rowNum, vector)))
 
   const hexagonGrid = new HexagonGrid(grid, vectorDim, xDim, yDim)
-
-  for (let rowNum = 0; rowNum < yDim; rowNum++) {
-    for (let colNum = 0; colNum < xDim; colNum++) {
-      hexagonGrid.calculateNeighbours(colNum, rowNum)
-    }
-  }
+  hexagonGrid.calculateAllNeighbours()
   return hexagonGrid
 }
 
