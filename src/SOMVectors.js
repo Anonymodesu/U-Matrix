@@ -53,6 +53,21 @@ class HexagonGrid {
     && rowNum >= 0 && rowNum < this.yDim;
   }
 
+  // calculates the (x,y) coordinates of this hexagon's neighbours
+  neighbourCalculators(colNum, rowNum) {
+    // hexagons on odd-indexed rows are shifted forward once, compared to hexagons on even-indexed rows
+    const rowIndexShift = (rowNum % 2 === 0) ? 0 : 1
+
+    return {
+      'top-left':     () => [colNum - 1 + rowIndexShift,  rowNum - 1],
+      'top-right':    () => [colNum + rowIndexShift,      rowNum - 1],
+      'left':         () => [colNum - 1,                  rowNum],
+      'right':        () => [colNum + 1,                  rowNum],
+      'bottom-left':  () => [colNum - 1 + rowIndexShift,  rowNum + 1],
+      'bottom-right': () => [colNum + rowIndexShift,      rowNum + 1]
+    }
+  }
+
   // determines the immediate neighbours of each hexagon
   calculateAllNeighbours() {
     for (let rowNum = 0; rowNum < this.yDim; rowNum++) {
@@ -66,7 +81,7 @@ class HexagonGrid {
   calculateNeighbours(colNum, rowNum) {
     const hexagon = this.grid[rowNum][colNum]
 
-    for (const [key, getCoordinates] of Object.entries(neighbourCalculators(colNum, rowNum))) {
+    for (const [key, getCoordinates] of Object.entries(this.neighbourCalculators(colNum, rowNum))) {
       const [x, y] = getCoordinates()
 
       if (this.inBounds(x, y)) {
@@ -86,21 +101,6 @@ class HexagonGrid {
 
 }
 
-// calculates the (x,y) coordinates of this hexagon's neighbours
-function neighbourCalculators(colNum, rowNum) {
-  // hexagons on odd-indexed rows are shifted forward once, compared to hexagons on even-indexed rows
-  const rowIndexShift = (rowNum % 2 === 0) ? 0 : 1
-
-  return {
-    'top-left':     () => [colNum - 1 + rowIndexShift,  rowNum - 1],
-    'top-right':    () => [colNum + rowIndexShift,      rowNum - 1],
-    'left':         () => [colNum - 1,                  rowNum],
-    'right':        () => [colNum + 1,                  rowNum],
-    'bottom-left':  () => [colNum - 1 + rowIndexShift,  rowNum + 1],
-    'bottom-right': () => [colNum + rowIndexShift,      rowNum + 1]
-  }
-}
-
 function constructHexagonGrid(vectorGrid, vectorDim, xDim, yDim) {
   const grid = vectorGrid.map((vectorRow, rowNum) => 
                 vectorRow.map((vector, colNum) => 
@@ -114,9 +114,9 @@ function constructHexagonGrid(vectorGrid, vectorDim, xDim, yDim) {
 /**
  * Given a flattened array of vectors, convert them to a 2D array of vectors (which is a 3D array of numbers)
  * @param {string[]} vectorArr A flattened array of vectors in string format
- * @param {*} vectorDim Number of elements per vector in the SOM
- * @param {*} xDim Number of vectors on the x dimension in the SOM
- * @param {*} yDim Number of neurons on the y dimension in the SOM
+ * @param {number} vectorDim Number of elements per vector in the SOM
+ * @param {number} xDim Number of vectors on the x dimension in the SOM
+ * @param {number} yDim Number of neurons on the y dimension in the SOM
  * @returns A 2D array of vectors
  */
 function getVectorGrid(vectorArr, vectorDim, xDim, yDim) {
@@ -139,7 +139,11 @@ function getVectorGrid(vectorArr, vectorDim, xDim, yDim) {
   return vectorGrid
 }
 
-async function getHexagonGrid() {
+/**
+ * Generates a grid of hexagons given ./ex.cod
+ * @returns {HexagonGrid} 
+ */
+async function getSOM() {
   const text = (await fetch(raw)).text()
   const lines = (await text).split('\r\n')
   const hyperparameters = lines[0].split(' ')
@@ -153,4 +157,4 @@ async function getHexagonGrid() {
   return constructHexagonGrid(vectorGrid, vectorDim, xDim, yDim)
 }
 
-export { getHexagonGrid, HexagonGrid }
+export { getSOM, HexagonGrid }

@@ -1,7 +1,5 @@
-import './App.css';
 import React from 'react';
-import { getHexagonGrid, HexagonGrid } from './SOMVectors';
-import 'color'
+import { getSOM } from './SOMVectors';
 import Color from 'color';
 
 function Hexagon(props) {
@@ -9,7 +7,8 @@ function Hexagon(props) {
 
   let centre;
   if (props.isVector) {
-    centre = <circle cx="8" cy="8" r="1.5" fill={props.distanceRatio > 0.5 ? "white" : "black"} />
+    centre = <circle cx="8" cy="8" r="1.5"
+      fill={props.distanceRatio > 0.5 ? "white" : "black"} />
   } else {
     centre = null
   }
@@ -19,7 +18,9 @@ function Hexagon(props) {
       width={props.size}
       class="bi bi-hexagon-fill"
       viewBox="0 0 16 16">
-      <path fill={color} fill-rule="evenodd" d="M8.5.134a1 1 0 0 0-1 0l-6 3.577a1 1 0 0 0-.5.866v6.846a1 1 0 0 0 .5.866l6 3.577a1 1 0 0 0 1 0l6-3.577a1 1 0 0 0 .5-.866V4.577a1 1 0 0 0-.5-.866L8.5.134z" />
+      <path fill={color} fill-rule="evenodd"
+        d="M8.5.134a1 1 0 0 0-1 0l-6 3.577a1 1 0 0 0-.5.866v6.846a1 1 0 0 0 .5.866l6 3.577a1 1 0 0 0 1 0l6-3.577a1 1 0 0 0 .5-.866V4.577a1 1 0 0 0-.5-.866L8.5.134z"
+      />
       {centre}
     </svg>
   );
@@ -29,113 +30,136 @@ class SOM extends React.Component {
 
   constructor(props) {
     super(props);
-    // Initialise an empty grid while the real one loads
     this.state = {
-      hexagonGrid: new HexagonGrid([[]], 1, 0, 0)
+      hexagonGrid: null
     }
   }
 
-  //Load the real hexagon grid into memory
+  //Load the hexagon grid into memory
   componentDidMount() {
-    getHexagonGrid().then(grid => this.setState({
-      hexagonGrid: grid
+    getSOM().then(grid => this.setState({
+      hexagonGrid: grid,
+      maxDistance: grid.getMaxDistance(),
+
+      // Hexagon dimensions explained here https://www.redblobgames.com/grids/hexagons/
+      // Check the topics 'Offset coordinates' and 'Doubled coordinates'
+      // I'm using Doubled coordinates
+      hexagonWidth: Math.sqrt(3) * this.props.hexagonSize,
+      hexagonHeight: 1.5 * this.props.hexagonSize,
+
+      // grid.xDim and grid.yDim represents the structure of codebook vectors
+      // the expanded versions take into account the intermediate distances hexagons
+      xExpandedDim: grid.xDim * 4 - 1,
+      yExpandedDim: grid.yDim * 2 - 1
     }))
   }
 
+  // Returns CSS to correctly place the hexagon in the grid
+  getHexagonCSS(expandedRowNum, expandedColNum) {
+    // CSS grid indices start from 1 instead of 0
+    return {
+      'grid-column': `${expandedColNum + 1}`,
+      'grid-column-end': `${expandedColNum + 2}`,
+      'grid-row-start': `${expandedRowNum + 1}`,
+      'grid-row-end': `${expandedRowNum + 2}`,
+    }
+  }
+
+  /**
+   * @param {JSX.Element} hexagon 
+   * @param {number} expandedRowNum 
+   * @param {number} expandedColNum 
+   * @returns a div that captures the hexagon's position in the displayed/expanded hexagon grid
+   */
+  getGridItem(hexagon, expandedRowNum, expandedColNum) {
+    return <div key={expandedRowNum * this.state.xExpandedDim + expandedColNum}
+      style={this.getHexagonCSS(expandedRowNum, expandedColNum)}>
+      {hexagon}
+    </div>
+  }
+
+  /**
+   * Returns the coordinates of the hexagon (in the expanded space) representing the distance between
+   * the hexagon at (expandedColNum, expandedRowNum) and it's neighbour
+   * @param {'bottom-left'|'bottom-right'|'right'} neighbour 
+   * @param {number} expandedRowNum 
+   * @param {number} expandedColNum 
+   * @returns coordinates of the distance hexagon
+   */
+  getNeighbourCoordinates(neighbour, expandedRowNum, expandedColNum) {
+    switch (neighbour) {
+      case 'bottom-left':
+        expandedRowNum++
+        expandedColNum--
+        break
+      case 'bottom-right':
+        expandedRowNum++
+        expandedColNum++
+        break
+      case 'right':
+        expandedColNum += 2
+        break;
+      default:
+        throw new Error(`${neighbour} is not a valid neighbour`)
+    }
+    return [expandedColNum, expandedRowNum]
+  }
+
+  /**
+   * Generates the hexagon at position (colNum, rowNum) in the grid, representing a codebook vector.
+   * Also generates up to 3 hexagons to represent the vector's distances to three of its neighbours.
+   * Check out the Components tab in React's Devtools plugin to see the order of hexagon generation.
+   * @param {number} rowNum 
+   * @param {number} colNum 
+   * @returns a list of up to 4 JSX elements, 
+   * 
+   */
+  generateHexagonNeighbourhood(rowNum, colNum) {
+    const hexagon = this.state.hexagonGrid.grid[rowNum][colNum]
+    const vectorHexagon = <Hexagon
+      size={this.state.hexagonWidth}
+      isVector={true}
+      distanceRatio={hexagon.getAverageDistance() / this.state.maxDistance}
+    />
+
+    const expandedColNum = 4 * colNum + 2 * (rowNum % 2)
+    const expandedRowNum = 2 * rowNum
+
+    // First add the vector hexagon
+    const neighbourhood = [this.getGridItem(vectorHexagon, expandedRowNum, expandedColNum)]
+
+    // Then add the vector hexagon's neighbours (which are distance hexagons)
+    for (const neighbour of ['bottom-left', 'bottom-right', 'right']) {
+      if (hexagon.neighbours[neighbour]) {
+        const distanceHexagon = <Hexagon
+          size={this.state.hexagonWidth}
+          isVector={false}
+          distanceRatio={hexagon.getDistance(neighbour) / this.state.maxDistance}
+        />
+        const [x, y] = this.getNeighbourCoordinates(neighbour, expandedRowNum, expandedColNum)
+        neighbourhood.push(this.getGridItem(distanceHexagon, y, x))
+      }
+    }
+
+    return neighbourhood
+  }
+
   render() {
-    const hexagonGrid = this.state.hexagonGrid
-    const maxDistance = hexagonGrid.getMaxDistance()
+    if (!this.state.hexagonGrid) {
+      return null
+    }
 
-    // Hexagon dimensions explained here https://www.redblobgames.com/grids/hexagons/
-    // Check the topics 'Offset coordinates' and 'Doubled coordinates'
-    // I'm using Doubled coordinates
-    const hexagonWidth = Math.sqrt(3) * this.props.hexagonSize
-    const hexagonHeight = 1.5 * this.props.hexagonSize
-
-    // props.xDim and props.yDim represent the structure of codebook vectors
-    // their expanded versions take into account the intermediate distances hexagons
-    const xExpandedDim = hexagonGrid.xDim * 4 - 1
-    const yExpandedDim = hexagonGrid.yDim * 2 - 1
-
-    let gridItems = []
     const gridCssStyle = {
       'display': 'grid',
-      'grid-template-columns': `repeat(${xExpandedDim}, ${0.5 * hexagonWidth}px)`,
-      'grid-template-rows': `repeat(${yExpandedDim}, ${hexagonHeight}px)`,
+      'grid-template-columns': `repeat(${this.state.xExpandedDim}, ${0.5 * this.state.hexagonWidth}px)`,
+      'grid-template-rows': `repeat(${this.state.yExpandedDim}, ${this.state.hexagonHeight}px)`,
       'justify-content': 'center',
     }
 
-    // Returns CSS to correctly place the hexagon in the grid
-    function getHexagonCSS(expandedRowNum, expandedColNum) {
-
-      // CSS grid indices start from 1 instead of 0
-      return {
-        'grid-column': `${expandedColNum + 1}`,
-        'grid-column-end': `${expandedColNum + 2}`,
-        'grid-row-start': `${expandedRowNum + 1}`,
-        'grid-row-end': `${expandedRowNum + 2}`,
-      }
-    }
-
-    function getGridItem(gridItem, expandedRowNum, expandedColNum) {
-      return <div key={expandedRowNum * xExpandedDim + expandedColNum} 
-                  style={getHexagonCSS(expandedRowNum, expandedColNum)}>
-                {gridItem}
-            </div>
-    }
-
-    function getNeighbourCoordinates(neighbour, expandedRowNum, expandedColNum) {
-      switch(neighbour) {
-        case 'bottom-left':
-          expandedRowNum++
-          expandedColNum--
-          break
-        case 'bottom-right':
-          expandedRowNum++
-          expandedColNum++
-          break
-        case 'right':
-          expandedColNum += 2
-          break;
-        default:
-          throw new Error(`${neighbour} is not a valid neighbour`)
-      }
-      return [expandedColNum, expandedRowNum]
-    }
-
-    function generateHexagonNeighbourhood(rowNum, colNum) {
-      const hexagon = hexagonGrid.grid[rowNum][colNum]
-      const vectorHexagon = <Hexagon 
-                              size={hexagonWidth} 
-                              isVector={true} 
-                              distanceRatio={hexagon.getAverageDistance() / maxDistance}
-                            />
-
-      const expandedColNum = 4 * colNum + 2 * (rowNum % 2)
-      const expandedRowNum = 2 * rowNum
-
-      //First add the vector hexagon
-      const neighbourhood = [ getGridItem(vectorHexagon, expandedRowNum, expandedColNum) ]
-
-      // Then add the vector hexagon's neighbours (which are distance hexagons)
-      for(const neighbour of ['bottom-left', 'bottom-right', 'right']) {
-        if(hexagon.neighbours[neighbour]) {
-          const distanceHexagon = <Hexagon 
-                                    size={hexagonWidth} 
-                                    isVector={false} 
-                                    distanceRatio={hexagon.getDistance(neighbour) / maxDistance}
-                                  />
-          const [x, y] = getNeighbourCoordinates(neighbour, expandedRowNum, expandedColNum)
-          neighbourhood.push(getGridItem(distanceHexagon, y, x))
-        } 
-      }
-
-      return neighbourhood
-    }
-
-    for (let rowNum = 0; rowNum < hexagonGrid.yDim; rowNum++) {
-      for (let colNum = 0; colNum < hexagonGrid.xDim; colNum++) {
-        const neighbourhood = generateHexagonNeighbourhood(rowNum, colNum)
+    let gridItems = []
+    for (let rowNum = 0; rowNum < this.state.hexagonGrid.yDim; rowNum++) {
+      for (let colNum = 0; colNum < this.state.hexagonGrid.xDim; colNum++) {
+        const neighbourhood = this.generateHexagonNeighbourhood(rowNum, colNum)
         gridItems = gridItems.concat(neighbourhood)
       }
     }
@@ -150,18 +174,14 @@ class SOM extends React.Component {
 
 function App() {
   return (
-    <div className="App">
-      <header>
+    <div>
+      <header style={{'text-align': 'center'}}>
         <h2>Hexagon</h2>
       </header>
       <body>
         <SOM
           hexagonSize={30}
         />
-        <p>
-          <br></br>
-          Blah
-        </p>
       </body>
     </div>
   );
