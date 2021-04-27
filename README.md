@@ -3,7 +3,10 @@
 Important files are:
 1. `src/ex.cod` a sample trained SOM
 1. `src/SOM.js` generates the data structure representing the SOM
-1. `src/App.js` renders the SOM as a U-Matrix
+1. `src/App.js` renders the SOM as a U-Matrix:
+
+![U-Matrix](som.png "U-Matrix")
+
 
 # Getting Started with Create React App
 
