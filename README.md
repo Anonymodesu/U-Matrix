@@ -1,7 +1,7 @@
 ## Important SOM Stuff
 
 Important files are:
-1. `src/ex.cod` a sample trained SOM
+1. `src/ex.cod` a sample trained SOM defined in the format described by http://www.cis.hut.fi/research/som_pak/
 1. `src/SOM.js` generates the data structure representing the SOM
 1. `src/App.js` renders the SOM as a U-Matrix:
 
