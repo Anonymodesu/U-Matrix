@@ -1,7 +1,11 @@
 import React from 'react';
-import { getSOM } from './SOMVectors';
+import { getSOM } from './SOM';
 import Color from 'color';
 
+/**
+ * @param {*} props 
+ * @returns A single display hexagon in the U-Matrix
+ */
 function Hexagon(props) {
   const color = Color('rgb(255, 255, 255)').darken(props.distanceRatio)
 
@@ -26,7 +30,25 @@ function Hexagon(props) {
   );
 }
 
-class SOM extends React.Component {
+/**
+ * Generates the displayed U-Matrix.
+ * The grid's coordinate system is inspired by https://www.redblobgames.com/grids/hexagons/. 
+ * Check the topics 'Offset coordinates' and 'Doubled coordinates'.
+ * 
+ * Inspired by the above, there's two coordinate systems being simultaneously used in the code below:
+ *  - The SOM coordinate system described by the SOM paper. The following variables refer to this coordinate system:
+ *    - rowNum
+ *    - colNum
+ *    - xDim
+ *    - yDim
+ *  - The 'expanded' coordinate system which considers the intermediate hexagons between vectors, representing their distance.
+ *    The following variables refer to this coordinate system:
+ *    - expandedRowNum
+ *    - expandedColNum
+ *    - xExpandedDim
+ *    - yExpandedDim
+ */
+class UMatrix extends React.Component {
 
   constructor(props) {
     super(props);
@@ -40,17 +62,12 @@ class SOM extends React.Component {
     getSOM().then(grid => this.setState({
       hexagonGrid: grid,
       maxDistance: grid.getMaxDistance(),
+      xExpandedDim: grid.xDim * 4 - 1,
+      yExpandedDim: grid.yDim * 2 - 1,
 
       // Hexagon dimensions explained here https://www.redblobgames.com/grids/hexagons/
-      // Check the topics 'Offset coordinates' and 'Doubled coordinates'
-      // I'm using Doubled coordinates
       hexagonWidth: Math.sqrt(3) * this.props.hexagonSize,
-      hexagonHeight: 1.5 * this.props.hexagonSize,
-
-      // grid.xDim and grid.yDim represents the structure of codebook vectors
-      // the expanded versions take into account the intermediate distances hexagons
-      xExpandedDim: grid.xDim * 4 - 1,
-      yExpandedDim: grid.yDim * 2 - 1
+      hexagonHeight: 1.5 * this.props.hexagonSize
     }))
   }
 
@@ -80,7 +97,7 @@ class SOM extends React.Component {
 
   /**
    * Returns the coordinates of the hexagon (in the expanded space) representing the distance between
-   * the hexagon at (expandedColNum, expandedRowNum) and it's neighbour
+   * the hexagon at (expandedColNum, expandedRowNum) and its neighbour
    * @param {'bottom-left'|'bottom-right'|'right'} neighbour 
    * @param {number} expandedRowNum 
    * @param {number} expandedColNum 
@@ -122,6 +139,7 @@ class SOM extends React.Component {
       distanceRatio={hexagon.getAverageDistance() / this.state.maxDistance}
     />
 
+    // For odd-indexed rows we add 2 * (rowNum % 2) to shift it forward
     const expandedColNum = 4 * colNum + 2 * (rowNum % 2)
     const expandedRowNum = 2 * rowNum
 
@@ -179,9 +197,7 @@ function App() {
         <h2>Hexagon</h2>
       </header>
       <body>
-        <SOM
-          hexagonSize={30}
-        />
+        <UMatrix hexagonSize={30}/>
       </body>
     </div>
   );
