@@ -205,4 +205,4 @@ async function getSOM() {
   return constructSOM(vectorGrid, vectorDim, xDim, yDim)
 }
 
-export { getSOM }
+export { getSOM, Node }

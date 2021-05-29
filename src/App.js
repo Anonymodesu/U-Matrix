@@ -7,12 +7,12 @@ import Color from 'color';
  * @returns A single display hexagon in the U-Matrix
  */
 function Hexagon(props) {
-  const color = Color('rgb(255, 255, 255)').darken(props.distanceRatio)
-
+  const color = Color("#b9d8f6").mix(Color("#000000"), props.distanceRatio)
+  
   let centre;
   if (props.isVector) {
-    centre = <circle cx="8" cy="8" r="1.5"
-      fill={props.distanceRatio > 0.5 ? "white" : "black"} />
+        centre = <circle cx="8" cy="8" r="1.5"
+            fill={props.distanceRatio > 0.5 ? "white" : "black"} />
   } else {
     centre = null
   }
@@ -193,14 +193,13 @@ class UMatrix extends React.Component {
 function App() {
   return (
     <div>
-      <header style={{'text-align': 'center'}}>
+      <header style={{'textAlign': 'center'}}>
         <h2>Hexagon</h2>
       </header>
-      <body>
-        <UMatrix hexagonSize={30}/>
-      </body>
+      <UMatrix hexagonSize={30}/>
     </div>
   );
 }
 
 export default App;
+export { Hexagon }
